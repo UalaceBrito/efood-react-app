@@ -108,7 +108,7 @@ export const restaurants: Restaurant[] = [
     deliveryTime: '25–35 min',
     deliveryFee: 'R$ 4,00',
     featured: 'Novidade',
-    image: 'https://images.unsplash.com/photo-1551024506-0dccd828d307?auto=format&fit=crop&w=1000&q=85',
+    image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=1000&q=85',
     description: 'Doces feitos à mão para transformar qualquer momento em uma ocasião especial.',
     menu: [
       { id: 'brownie', name: 'Brownie com Brigadeiro', description: 'Brownie de chocolate intenso com brigadeiro cremoso.', price: 18.9, image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=600&q=80', category: 'Bolos' },
