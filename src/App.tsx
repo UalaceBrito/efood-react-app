@@ -1,584 +1,207 @@
-import { useEffect, useMemo, useState } from 'react'
-import { BrowserRouter, Link, Route, Routes, useParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import styled, { createGlobalStyle } from 'styled-components'
-import { CartProvider } from './cart'
-import { useCart, type CartLine } from './cart-context'
-import { formatPrice, restaurants, type MenuItem, type Restaurant } from './data'
+import { useCart, type CartLine } from './cart-store'
+import { formatPrice, games, type MenuItem } from './data'
 
 const GlobalStyle = createGlobalStyle`
   * { box-sizing: border-box; }
-  :root { font-family: Inter, 'Segoe UI', Arial, sans-serif; color: #3b3b3b; background: #f4f1ea; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+  :root { font-family: Inter, 'Segoe UI', Arial, sans-serif; color: #f5f5f5; background: #111; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
   body { margin: 0; min-width: 320px; min-height: 100vh; }
   button, input { font: inherit; }
   button, a { -webkit-tap-highlight-color: transparent; }
   a { color: inherit; }
-  button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #b64242; outline-offset: 3px; }
-  ::selection { background: #f0cccc; }
+  button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #e7313e; outline-offset: 3px; }
+  ::selection { background: #e7313e; color: white; }
 `
 
 const Page = styled.div`
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  background: #111;
 `
 const Header = styled.header`
-  min-height: 100px;
-  background: #f4f1ea;
+  height: 76px;
+  padding: 0 max(24px, calc((100vw - 1180px) / 2));
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 20px max(24px, calc((100vw - 1100px) / 2));
-  position: relative;
-  @media (max-width: 580px) { min-height: 84px; padding: 18px 16px; }
-`
-const Brand = styled(Link)`
-  font-family: Georgia, 'Times New Roman', serif;
-  font-weight: 700;
-  font-size: 36px;
-  letter-spacing: -2px;
-  color: #e66767;
-  text-decoration: none;
-  line-height: 1;
-  span { color: #a74242; }
-  @media (max-width: 580px) { font-size: 31px; }
+  justify-content: space-between;
+  background: #080808;
+  border-bottom: 1px solid #282828;
+  img { display: block; width: 78px; height: 34px; }
+  @media (max-width: 580px) { padding: 0 18px; height: 66px; }
 `
 const CartLink = styled(Link)`
-  position: absolute;
-  right: max(24px, calc((100vw - 1100px) / 2));
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  color: #a74242;
-  font-weight: 700;
+  gap: 10px;
   text-decoration: none;
-  font-size: 14px;
-  .cart-icon { font-size: 20px; }
-  @media (max-width: 580px) { right: 16px; gap: 6px; font-size: 12px; .cart-icon { font-size: 18px; } }
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  img { width: 26px; height: 26px; object-fit: contain; }
+  .count { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; background: #e7313e; border-radius: 12px; font-size: 11px; }
 `
 const Main = styled.main`
-  width: min(1100px, calc(100% - 48px));
+  width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
-  flex: 1;
   @media (max-width: 580px) { width: calc(100% - 32px); }
 `
-const Footer = styled.footer`
-  text-align: center;
-  padding: 29px 16px;
-  color: #77716a;
-  font-size: 13px;
-  margin-top: 62px;
-  border-top: 1px solid #e5dfd5;
+const Hero = styled.section`
+  height: clamp(260px, 39vw, 440px);
+  margin: 28px 0 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background: #1b2025 url('/images/banner-homem-aranha.png') center 34% / cover no-repeat;
+  display: flex;
+  align-items: end;
+  &::before { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.9), rgba(0,0,0,.02) 76%); }
+  @media (max-width: 580px) { margin: 18px 0 34px; height: 250px; background-position: 50% 24%; }
 `
-const Button = styled.button`
-  border: 0;
-  border-radius: 4px;
-  background: #e66767;
-  color: #fff;
-  min-height: 38px;
-  padding: 9px 15px;
-  font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background .16s ease, transform .16s ease;
-  &:hover { background: #ca5050; }
-  &:active { transform: translateY(1px); }
-  &:disabled { background: #c8c2b9; cursor: not-allowed; transform: none; }
-`
-const QuietButton = styled.button`
-  border: 1px solid #e66767;
-  border-radius: 4px;
-  background: transparent;
-  color: #b34e4e;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  &:hover { background: #fff5f3; }
+const HeroCopy = styled.div`
+  z-index: 1;
+  padding: 32px 38px;
+  h1 { font-size: clamp(27px, 4vw, 44px); line-height: 1.08; margin: 0 0 8px; letter-spacing: -.8px; }
+  p { color: #dedede; margin: 0; font-size: 14px; }
+  @media (max-width: 580px) { padding: 22px; }
 `
 const Eyebrow = styled.p`
-  color: #b34e4e;
+  color: #ee3945 !important;
+  font-size: 11px !important;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1.6px;
-  font-size: 11px;
-  font-weight: 800;
-  margin: 0 0 13px;
-`
-const PageTitle = styled.h1`
-  color: #33302d;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(32px, 5vw, 48px);
-  line-height: 1.13;
-  letter-spacing: -1.2px;
-  margin: 0;
-`
-
-function AppShell() {
-  const { count } = useCart()
-  return (
-    <Page>
-      <Header>
-        <Brand to="/" aria-label="efood, página inicial">e<span>food</span></Brand>
-        <CartLink to="/carrinho" aria-label={`Carrinho, ${count} ${count === 1 ? 'item' : 'itens'}`}>
-          <span className="cart-icon" aria-hidden="true">🛒</span>
-          <span>{count} {count === 1 ? 'produto' : 'produtos'}</span>
-        </CartLink>
-      </Header>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/restaurante/:id" element={<RestaurantPage />} />
-        <Route path="/carrinho" element={<CartPage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Footer>Feito com carinho para a sua fome. <strong>efood</strong></Footer>
-    </Page>
-  )
-}
-
-const Hero = styled.section`
-  background: #e66767;
-  border-radius: 5px;
-  min-height: 245px;
-  padding: 43px 54px;
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
-  overflow: hidden;
-  &::after { content: 'e'; position: absolute; font: 700 320px/1 Georgia, serif; color: rgba(255,255,255,.08); right: 82px; bottom: -143px; }
-  @media (max-width: 700px) { min-height: 230px; padding: 32px 26px; &::after { right: -38px; bottom: -160px; } }
-`
-const HeroContent = styled.div`
-  max-width: 600px;
-  position: relative;
-  z-index: 1;
-  p { font-size: 13px; margin: 14px 0 0; color: rgba(255,255,255,.88); }
-  h1 { font: 700 clamp(33px, 5vw, 52px)/1.1 Georgia, serif; letter-spacing: -1.4px; margin: 0; max-width: 540px; }
-`
-const HeroTag = styled.span`
-  display: inline-flex;
-  background: #f4f1ea;
-  color: #a74242;
-  border-radius: 30px;
-  padding: 8px 13px;
-  font-size: 11px;
-  font-weight: 800;
-  margin-top: 24px;
-`
-const ContentSection = styled.section`
-  padding-top: 54px;
-  @media (max-width: 580px) { padding-top: 38px; }
+  letter-spacing: 1.8px;
+  margin: 0 0 9px !important;
 `
 const SectionTop = styled.div`
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 24px;
-  h2 { margin: 0; color: #33302d; font: 700 28px/1.2 Georgia, serif; }
-  p { margin: 7px 0 0; color: #817b74; font-size: 13px; }
-  @media (max-width: 580px) { align-items: start; flex-direction: column; gap: 14px; }
+  gap: 18px;
+  margin-bottom: 20px;
+  h2 { margin: 0; font-size: 25px; }
+  p { margin: 6px 0 0; color: #999; font-size: 13px; }
+  @media (max-width: 620px) { align-items: stretch; flex-direction: column; }
 `
 const Search = styled.input`
-  border: 1px solid #ded8cf;
+  height: 40px;
+  width: min(290px, 100%);
+  padding: 0 12px;
+  color: white;
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
   border-radius: 4px;
-  height: 42px;
-  width: min(275px, 100%);
-  padding: 0 13px;
-  background: #fffdfa;
-  color: #383431;
-  font-size: 13px;
-  &::placeholder { color: #99938b; }
+  &::placeholder { color: #929292; }
 `
-const Chips = styled.div`
+const Filters = styled.div`
   display: flex;
-  gap: 9px;
-  margin-bottom: 22px;
-  overflow: auto;
-  padding-bottom: 3px;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 14px;
+  margin-bottom: 8px;
 `
-const Chip = styled.button<{ $active?: boolean }>`
-  white-space: nowrap;
-  border: 1px solid ${({ $active }) => $active ? '#e66767' : '#e0dacf'};
-  background: ${({ $active }) => $active ? '#e66767' : '#fffdfa'};
-  color: ${({ $active }) => $active ? '#fff' : '#5d5750'};
-  padding: 8px 15px;
-  border-radius: 25px;
+const Filter = styled.button<{ $active: boolean }>`
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border: 1px solid ${({ $active }) => $active ? '#e7313e' : '#373737'};
+  border-radius: 22px;
+  color: ${({ $active }) => $active ? 'white' : '#c8c8c8'};
+  background: ${({ $active }) => $active ? '#e7313e' : '#191919'};
   font-size: 12px;
-  font-weight: 650;
   cursor: pointer;
-  &:hover { border-color: #e66767; }
 `
-const RestaurantGrid = styled.div`
+const GameGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 22px;
-  @media (max-width: 850px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  @media (max-width: 560px) { grid-template-columns: 1fr; gap: 16px; }
+  gap: 20px;
+  @media (max-width: 820px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 540px) { grid-template-columns: 1fr; }
 `
-const RestaurantCard = styled.article`
-  background: #fffdfa;
-  border: 1px solid #e9e3da;
-  border-radius: 5px;
+const GameCard = styled.article`
+  min-width: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform .18s ease, box-shadow .18s ease;
-  &:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(65,48,30,.09); }
-`
-const CardImageWrap = styled.div`
-  height: 185px;
-  position: relative;
-  background: #e6ddd1;
-  img { width: 100%; height: 100%; object-fit: cover; display: block; }
-`
-const Badge = styled.span`
-  background: #e66767;
-  color: #fff;
-  position: absolute;
-  top: 13px;
-  left: 13px;
-  border-radius: 3px;
-  padding: 6px 9px;
-  font-size: 10px;
-  font-weight: 800;
-`
-const CardBody = styled.div`
-  padding: 17px;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-`
-const CardHeading = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  h3 { color: #37322e; font: 700 20px/1.2 Georgia, serif; margin: 0; }
-  span { color: #a74242; font-weight: 800; font-size: 12px; white-space: nowrap; }
-`
-const CardMeta = styled.p`
-  color: #807a73;
-  font-size: 12px;
-  margin: 9px 0 14px;
-  span { padding: 0 6px; color: #c2b8ac; }
-`
-const CardDescription = styled.p`
-  color: #716b64;
-  font-size: 13px;
-  line-height: 1.55;
-  margin: 0 0 17px;
-  flex: 1;
-`
-const FullButtonLink = styled(Link)`
-  display: block;
-  background: #e66767;
-  color: #fff;
-  border-radius: 4px;
-  padding: 11px 12px;
-  font-weight: 800;
-  font-size: 12px;
-  text-decoration: none;
-  text-align: center;
-  &:hover { background: #ca5050; }
-`
-const EmptyMessage = styled.p`
-  color: #77716a;
-  background: #fffdfa;
-  border: 1px solid #e9e3da;
-  border-radius: 5px;
-  padding: 30px;
-  text-align: center;
-  grid-column: 1 / -1;
-`
-
-function HomePage() {
-  const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('Todos')
-  const categories = ['Todos', ...new Set(restaurants.map((restaurant) => restaurant.cuisine))]
-  const filteredRestaurants = useMemo(
-    () => restaurants.filter((restaurant) =>
-      (category === 'Todos' || restaurant.cuisine === category)
-      && `${restaurant.name} ${restaurant.cuisine}`.toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')),
-    ),
-    [category, query],
-  )
-
-  return (
-    <Main>
-      <Hero>
-        <HeroContent>
-          <Eyebrow style={{ color: '#fff', opacity: .85 }}>Seu próximo prato favorito</Eyebrow>
-          <h1>Tem sabor que pede efood.</h1>
-          <p>Comida boa, de quem cozinha com carinho, até a sua porta.</p>
-          <HeroTag>Descubra restaurantes perto de você</HeroTag>
-        </HeroContent>
-      </Hero>
-      <ContentSection>
-        <SectionTop>
-          <div><h2>Restaurantes</h2><p>Escolha seu lugar favorito para pedir hoje.</p></div>
-          <Search aria-label="Buscar restaurantes" placeholder="Buscar restaurante ou cozinha" value={query} onChange={(event) => setQuery(event.target.value)} />
-        </SectionTop>
-        <Chips aria-label="Filtrar por categoria">
-          {categories.map((item) => (
-            <Chip type="button" key={item} $active={category === item} aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</Chip>
-          ))}
-        </Chips>
-        <RestaurantGrid>
-          {filteredRestaurants.length
-            ? filteredRestaurants.map((restaurant) => <RestaurantTile key={restaurant.id} restaurant={restaurant} />)
-            : <EmptyMessage>Nenhum restaurante encontrado. Tente outra busca.</EmptyMessage>}
-        </RestaurantGrid>
-      </ContentSection>
-    </Main>
-  )
-}
-
-function RestaurantTile({ restaurant }: { restaurant: Restaurant }) {
-  return (
-    <RestaurantCard>
-      <CardImageWrap>
-        <img src={restaurant.image} alt={`Prato servido pelo restaurante ${restaurant.name}`} loading="lazy" />
-        {restaurant.featured && <Badge>{restaurant.featured}</Badge>}
-      </CardImageWrap>
-      <CardBody>
-        <CardHeading><h3>{restaurant.name}</h3><span aria-label={`Avaliação ${restaurant.rating}`}>★ {restaurant.rating}</span></CardHeading>
-        <CardMeta>{restaurant.cuisine}<span>•</span>{restaurant.deliveryTime}<span>•</span>{restaurant.deliveryFee}</CardMeta>
-        <CardDescription>{restaurant.description}</CardDescription>
-        <FullButtonLink to={`/restaurante/${restaurant.id}`}>Ver cardápio</FullButtonLink>
-      </CardBody>
-    </RestaurantCard>
-  )
-}
-
-const RestaurantHero = styled.section`
-  height: 275px;
-  background: #9a5546;
-  position: relative;
-  overflow: hidden;
-  border-radius: 5px;
-  color: #fff;
-  img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  &::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(25,18,14,.78), rgba(25,18,14,.05)); }
-  @media (max-width: 580px) { height: 225px; }
-`
-const RestaurantInfo = styled.div`
-  position: absolute;
-  z-index: 1;
-  left: 38px;
-  bottom: 30px;
-  max-width: 620px;
-  .type { font-size: 12px; margin: 0 0 9px; color: #ffe0d9; }
-  h1 { font: 700 clamp(32px, 5vw, 48px)/1.1 Georgia, serif; margin: 0 0 9px; }
-  .description { font-size: 13px; line-height: 1.5; margin: 0; color: rgba(255,255,255,.9); }
-  @media (max-width: 580px) { left: 22px; right: 18px; bottom: 22px; }
-`
-const BackLink = styled(Link)`
-  display: inline-block;
-  color: #a74242;
-  text-decoration: none;
-  font-size: 12px;
-  font-weight: 800;
-  margin: 23px 0 20px;
-  &:hover { text-decoration: underline; }
-`
-const MenuSection = styled.section`
-  padding-top: 35px;
-  h2 { font: 700 28px/1.2 Georgia, serif; color: #33302d; margin: 0 0 18px; }
-`
-const MenuGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 15px;
-  @media (max-width: 650px) { grid-template-columns: 1fr; }
-`
-const MenuCard = styled.article`
-  background: #fffdfa;
-  border: 1px solid #e9e3da;
-  border-radius: 5px;
-  padding: 13px;
-  display: flex;
-  align-items: stretch;
-  gap: 15px;
-  min-height: 148px;
-  img { width: 132px; min-height: 122px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
-  @media (max-width: 430px) { gap: 11px; padding: 10px; img { width: 100px; min-height: 112px; } }
-`
-const MenuCardInfo = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  h3 { font: 700 17px/1.25 Georgia, serif; color: #37322e; margin: 2px 0 7px; }
-  p { color: #77716a; font-size: 11px; line-height: 1.45; margin: 0 0 12px; }
-  .price { color: #a74242; font-size: 13px; font-weight: 800; margin-top: auto; }
-  button { margin-top: 9px; }
-`
-const MenuCategory = styled.p`
-  color: #a74242;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  font-weight: 800;
-  margin: 0 0 9px;
-`
-
-function RestaurantPage() {
-  const { id } = useParams()
-  const restaurant = restaurants.find((item) => item.id === id)
-  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
-  const [notice, setNotice] = useState('')
-  const menuCategories = restaurant ? [...new Set(restaurant.menu.map((item) => item.category))] : []
-
-  if (!restaurant) return <NotFound />
-
-  return (
-    <Main>
-      <BackLink to="/">← Voltar para restaurantes</BackLink>
-      <RestaurantHero>
-        <img src={restaurant.image} alt="" />
-        <RestaurantInfo>
-          <p className="type">{restaurant.cuisine} · ★ {restaurant.rating} · {restaurant.deliveryTime}</p>
-          <h1>{restaurant.name}</h1>
-          <p className="description">{restaurant.description}</p>
-        </RestaurantInfo>
-      </RestaurantHero>
-      {notice && <Notice role="status">{notice}</Notice>}
-      {menuCategories.map((categoryName) => (
-        <MenuSection key={categoryName}>
-          <MenuCategory>{categoryName}</MenuCategory>
-          <MenuGrid>
-            {restaurant.menu.filter((item) => item.category === categoryName).map((item) => (
-              <MenuCard key={item.id}>
-                <img src={item.image} alt={item.name} loading="lazy" />
-                <MenuCardInfo>
-                  <h3>{item.name}</h3>
-                  <p>{item.description}</p>
-                  <span className="price">{formatPrice(item.price)}</span>
-                  <Button type="button" onClick={() => setSelectedItem(item)}>Adicionar</Button>
-                </MenuCardInfo>
-              </MenuCard>
-            ))}
-          </MenuGrid>
-        </MenuSection>
-      ))}
-      {selectedItem && <ProductDialog item={selectedItem} restaurant={restaurant} onClose={() => setSelectedItem(null)} onAdded={() => { setNotice(`${selectedItem.name} adicionado ao carrinho.`); setSelectedItem(null) }} />}
-    </Main>
-  )
-}
-
-const Notice = styled.p`
-  background: #edf5ea;
-  border-left: 3px solid #65915b;
-  color: #3d6934;
-  padding: 12px 15px;
-  border-radius: 3px;
-  margin: 18px 0 0;
-  font-size: 13px;
-`
-const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  background: rgba(31, 27, 24, .6);
-  display: grid;
-  place-items: center;
-  padding: 18px;
-`
-const Dialog = styled.div`
-  width: min(470px, 100%);
-  max-height: min(720px, 92vh);
-  overflow: auto;
-  background: #fffdfa;
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
   border-radius: 6px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.25);
-  position: relative;
-  img { display: block; width: 100%; height: 235px; object-fit: cover; }
+  transition: transform .18s ease, border-color .18s ease;
+  &:hover { transform: translateY(-3px); border-color: #5b3033; }
 `
-const CloseButton = styled.button`
+const Cover = styled.div`
+  height: 220px;
+  position: relative;
+  background: #242424;
+  img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  @media (max-width: 540px) { height: 245px; }
+`
+const Category = styled.span`
   position: absolute;
   top: 12px;
-  right: 12px;
-  border: 0;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  background: #fffdfa;
-  color: #39332d;
-  font-size: 20px;
-  cursor: pointer;
+  left: 12px;
+  padding: 6px 9px;
+  color: white;
+  background: rgba(12,12,12,.78);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
 `
-const DialogContent = styled.div`
-  padding: 22px;
-  h2 { font: 700 26px/1.2 Georgia, serif; color: #37322e; margin: 0 0 9px; }
-  p { color: #77716a; font-size: 13px; line-height: 1.6; margin: 0 0 17px; }
-  strong { color: #a74242; font-size: 17px; }
+const CardBody = styled.div`
+  padding: 16px;
+  h3 { min-height: 42px; margin: 0 0 7px; font-size: 17px; line-height: 1.25; }
+  p { min-height: 54px; margin: 0 0 16px; color: #aaa; font-size: 12px; line-height: 1.5; }
 `
-const DialogActions = styled.div`
+const CardBottom = styled.div`
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 20px;
-  button:last-child { flex: 1; }
-`
-const QuantityControl = styled.div`
-  display: inline-flex;
   align-items: center;
-  gap: 13px;
-  button { border: 1px solid #e2dacf; border-radius: 4px; width: 32px; height: 32px; background: #fff; color: #a74242; font-weight: 800; cursor: pointer; }
-  span { min-width: 16px; text-align: center; font-weight: 700; }
+  gap: 10px;
+  strong { color: #fff; font-size: 16px; white-space: nowrap; }
 `
-
-function ProductDialog({ item, restaurant, onClose, onAdded }: { item: MenuItem; restaurant: Restaurant; onClose: () => void; onAdded: () => void }) {
-  const [quantity, setQuantity] = useState(1)
-  const addItem = useCart().addItem
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
-  const add = () => {
-    for (let index = 0; index < quantity; index += 1) addItem(item, restaurant.id, restaurant.name)
-    onAdded()
-  }
-  return (
-    <Overlay onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <Dialog role="dialog" aria-modal="true" aria-labelledby="product-title">
-        <CloseButton type="button" aria-label="Fechar" onClick={onClose}>×</CloseButton>
-        <img src={item.image} alt="" />
-        <DialogContent>
-          <MenuCategory>{restaurant.name}</MenuCategory>
-          <h2 id="product-title">{item.name}</h2>
-          <p>{item.description}</p>
-          <strong>{formatPrice(item.price)}</strong>
-          <DialogActions>
-            <QuantityControl aria-label="Quantidade">
-              <button type="button" aria-label="Diminuir quantidade" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button>
-              <span aria-live="polite">{quantity}</span>
-              <button type="button" aria-label="Aumentar quantidade" onClick={() => setQuantity((value) => value + 1)}>+</button>
-            </QuantityControl>
-            <Button type="button" onClick={add}>Adicionar ao carrinho · {formatPrice(item.price * quantity)}</Button>
-          </DialogActions>
-        </DialogContent>
-      </Dialog>
-    </Overlay>
-  )
-}
-
+const Button = styled.button`
+  min-height: 38px;
+  border: 0;
+  border-radius: 4px;
+  padding: 9px 13px;
+  color: white;
+  background: #d82c39;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .15s ease;
+  &:hover { background: #f03b49; }
+  &:disabled { background: #555; cursor: not-allowed; }
+`
+const Empty = styled.p`
+  grid-column: 1 / -1;
+  padding: 32px;
+  color: #aaa;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 5px;
+  text-align: center;
+`
+const Footer = styled.footer`
+  margin-top: 58px;
+  padding: 24px 16px;
+  color: #888;
+  text-align: center;
+  border-top: 1px solid #292929;
+  font-size: 12px;
+`
 const CartMain = styled(Main)`
-  padding-top: 36px;
-  max-width: 920px;
+  max-width: 930px;
+  padding-top: 42px;
+  h1 { margin: 0; font-size: clamp(32px, 5vw, 44px); }
 `
 const CartLayout = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 310px;
-  gap: 24px;
-  margin-top: 30px;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 22px;
+  margin-top: 28px;
   align-items: start;
-  @media (max-width: 760px) { grid-template-columns: 1fr; }
+  @media (max-width: 740px) { grid-template-columns: 1fr; }
 `
 const CartList = styled.div`
   display: flex;
@@ -586,135 +209,235 @@ const CartList = styled.div`
   gap: 12px;
 `
 const CartRow = styled.article`
-  background: #fffdfa;
-  border: 1px solid #e9e3da;
-  border-radius: 5px;
-  padding: 14px;
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr) auto;
-  gap: 14px;
+  grid-template-columns: 82px minmax(0, 1fr) auto;
   align-items: center;
-  img { width: 86px; height: 78px; object-fit: cover; border-radius: 4px; }
-  h3 { margin: 0 0 5px; font: 700 17px Georgia, serif; color: #37322e; }
-  p { color: #817b74; font-size: 11px; margin: 0 0 7px; }
-  .price { color: #a74242; font-size: 13px; font-weight: 800; }
-  @media (max-width: 480px) { grid-template-columns: 68px minmax(0, 1fr) auto; gap: 9px; padding: 10px; img { width: 68px; height: 70px; } }
+  gap: 14px;
+  padding: 12px;
+  background: #1a1a1a;
+  border: 1px solid #303030;
+  border-radius: 5px;
+  img { width: 82px; height: 86px; object-fit: cover; border-radius: 3px; }
+  h2 { font-size: 15px; margin: 0 0 7px; }
+  p { color: #aaa; font-size: 12px; margin: 0 0 8px; }
+  strong { color: #f1f1f1; font-size: 13px; }
+  @media (max-width: 480px) { grid-template-columns: 66px minmax(0, 1fr); gap: 10px; img { width: 66px; height: 78px; } }
 `
-const RowControls = styled.div`
+const RowActions = styled.div`
   display: flex;
   flex-direction: column;
   align-items: end;
-  gap: 9px;
-  button { border: 0; color: #a74242; text-decoration: underline; background: transparent; font-size: 11px; cursor: pointer; padding: 2px; }
+  gap: 10px;
+  @media (max-width: 480px) { grid-column: 2; flex-direction: row; align-items: center; justify-content: space-between; }
+`
+const Quantity = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  button { width: 28px; height: 28px; border: 1px solid #444; border-radius: 4px; color: white; background: #242424; font-weight: 800; cursor: pointer; }
+  span { min-width: 15px; text-align: center; font-size: 13px; }
+`
+const Remove = styled.button`
+  border: 0;
+  color: #ff727b;
+  background: transparent;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
 `
 const Summary = styled.aside`
-  background: #fffdfa;
-  border: 1px solid #e9e3da;
-  border-radius: 5px;
   padding: 20px;
-  h2 { margin: 0 0 18px; font: 700 22px Georgia, serif; color: #37322e; }
-  .summary-row { display: flex; justify-content: space-between; gap: 12px; color: #77716a; font-size: 13px; margin-bottom: 13px; }
-  .total { border-top: 1px solid #e9e3da; padding-top: 15px; color: #37322e; font-size: 15px; font-weight: 800; margin: 4px 0 18px; }
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 5px;
+  h2 { margin: 0 0 20px; font-size: 18px; }
+  .total { display: flex; justify-content: space-between; gap: 10px; padding: 16px 0; border-top: 1px solid #3a3a3a; font-size: 14px; font-weight: 800; }
+  .total strong { color: white; }
   ${Button} { width: 100%; }
-  small { display: block; color: #8a837a; font-size: 10px; line-height: 1.5; margin-top: 12px; }
 `
 const EmptyCart = styled.div`
-  background: #fffdfa;
-  border: 1px solid #e9e3da;
-  border-radius: 5px;
+  margin-top: 26px;
+  padding: 55px 22px;
   text-align: center;
-  padding: 52px 24px;
-  margin-top: 32px;
-  .icon { font-size: 42px; }
-  h2 { font: 700 25px Georgia, serif; color: #37322e; margin: 13px 0 7px; }
-  p { color: #77716a; font-size: 13px; margin: 0 0 22px; }
+  background: #1a1a1a;
+  border: 1px solid #303030;
+  border-radius: 5px;
+  img { width: 46px; height: 46px; object-fit: contain; opacity: .8; }
+  h2 { margin: 14px 0 8px; font-size: 21px; }
+  p { margin: 0 0 20px; color: #aaa; font-size: 13px; }
 `
-const Success = styled(Notice)`
-  margin-top: 20px;
+const BackLink = styled(Link)`
+  display: inline-block;
+  margin-top: 25px;
+  color: #ff6872;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  &:hover { text-decoration: underline; }
 `
+
+function StorePage() {
+  const { addItem } = useCart()
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('Todos')
+  const categories = ['Todos', ...new Set(games.map((game) => game.category))]
+  const filteredGames = useMemo(
+    () => games.filter((game) =>
+      (category === 'Todos' || game.category === category)
+      && `${game.name} ${game.description}`.toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')),
+    ),
+    [category, query],
+  )
+
+  return (
+    <Main>
+      <Hero>
+        <HeroCopy>
+          <Eyebrow>eplay • jogos para todos os estilos</Eyebrow>
+          <h1>A próxima aventura começa aqui.</h1>
+          <p>Encontre seu próximo jogo favorito.</p>
+        </HeroCopy>
+      </Hero>
+      <SectionTop>
+        <div><h2>Explore os jogos</h2><p>Grandes histórias. Novas aventuras.</p></div>
+        <Search aria-label="Buscar jogos" placeholder="Buscar jogo" value={query} onChange={(event) => setQuery(event.target.value)} />
+      </SectionTop>
+      <Filters aria-label="Filtrar por gênero">
+        {categories.map((item) => (
+          <Filter key={item} type="button" $active={category === item} aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</Filter>
+        ))}
+      </Filters>
+      <GameGrid>
+        {filteredGames.length
+          ? filteredGames.map((game) => <GameCardView key={game.id} game={game} onAdd={() => addItem(game, 'eplay', 'EPLAY')} />)
+          : <Empty>Nenhum jogo encontrado. Tente outra busca.</Empty>}
+      </GameGrid>
+      <Footer>Seu próximo jogo favorito está na <strong>EPLAY</strong>.</Footer>
+    </Main>
+  )
+}
+
+function GameCardView({ game, onAdd }: { game: MenuItem; onAdd: () => void }) {
+  return (
+    <GameCard>
+      <Cover>
+        <img src={game.image} alt={`Capa de ${game.name}`} loading="lazy" />
+        <Category>{game.category}</Category>
+      </Cover>
+      <CardBody>
+        <h3>{game.name}</h3>
+        <p>{game.description}</p>
+        <CardBottom><strong>{formatPrice(game.price)}</strong><Button type="button" onClick={onAdd}>Adicionar ao carrinho</Button></CardBottom>
+      </CardBody>
+    </GameCard>
+  )
+}
 
 function CartPage() {
-  const { items, subtotal, changeQuantity, removeItem, clearCart } = useCart()
-  const [message, setMessage] = useState('')
-  const fee = items.length ? 6.9 : 0
-  const total = subtotal + fee
-
-  if (items.length === 0) {
-    return (
-      <CartMain>
-        <Eyebrow>Seu pedido</Eyebrow><PageTitle>Carrinho</PageTitle>
-        {message && <Success role="status">{message}</Success>}
-        <EmptyCart>
-          <div className="icon" aria-hidden="true">🛍️</div>
-          <h2>Seu carrinho está vazio</h2>
-          <p>Explore os restaurantes e encontre algo delicioso.</p>
-          <FullButtonLink to="/">Ver restaurantes</FullButtonLink>
-        </EmptyCart>
-      </CartMain>
-    )
-  }
+  const { items, count, subtotal, changeQuantity, removeItem, clearCart } = useCart()
 
   return (
     <CartMain>
-      <Eyebrow>Seu pedido</Eyebrow><PageTitle>Carrinho</PageTitle>
-      <CartLayout>
-        <CartList aria-label="Itens do carrinho">
-          {items.map((line) => <CartItemRow key={`${line.restaurantId}-${line.item.id}`} line={line} onRemove={() => removeItem(line.item.id, line.restaurantId)} onChange={(amount) => changeQuantity(line.item.id, line.restaurantId, amount)} />)}
-          <QuietButton type="button" onClick={clearCart}>Limpar carrinho</QuietButton>
-        </CartList>
-        <Summary>
-          <h2>Resumo do pedido</h2>
-          <div className="summary-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
-          <div className="summary-row"><span>Entrega</span><span>{formatPrice(fee)}</span></div>
-          <div className="summary-row total"><span>Total</span><span>{formatPrice(total)}</span></div>
-          <Button type="button" onClick={() => { setMessage('Pedido demonstrativo finalizado! Nenhum pagamento foi realizado.'); clearCart() }}>Finalizar pedido</Button>
-          <small>Esta é uma demonstração. Nenhum pagamento ou pedido real será feito.</small>
-        </Summary>
-      </CartLayout>
+      <Eyebrow>eplay • sua seleção</Eyebrow>
+      <h1>Carrinho</h1>
+      {items.length === 0 ? (
+        <EmptyCart>
+          <img src="/images/carrinho.svg" alt="" />
+          <h2>Seu carrinho está vazio</h2>
+          <p>Escolha um jogo e sua próxima aventura começa aqui.</p>
+          <ButtonLink />
+        </EmptyCart>
+      ) : (
+        <CartLayout>
+          <CartList aria-label="Jogos no carrinho">
+            {items.map((line) => (
+              <CartItem
+                key={`${line.restaurantId}-${line.item.id}`}
+                line={line}
+                onRemove={() => removeItem(line.item.id, line.restaurantId)}
+                onChange={(amount) => changeQuantity(line.item.id, line.restaurantId, amount)}
+              />
+            ))}
+            <RemoveAll type="button" onClick={clearCart}>Esvaziar carrinho</RemoveAll>
+          </CartList>
+          <Summary>
+            <h2>Resumo da compra</h2>
+            <div className="total"><span>Total ({count} {count === 1 ? 'item' : 'itens'})</span><strong>{formatPrice(subtotal)}</strong></div>
+            <Button type="button" onClick={() => window.alert('Compra demonstrativa: nenhum pagamento foi realizado.')}>Continuar para pagamento</Button>
+          </Summary>
+        </CartLayout>
+      )}
+      <BackLink to="/">← Continuar comprando</BackLink>
     </CartMain>
   )
 }
 
-function CartItemRow({ line, onRemove, onChange }: { line: CartLine; onRemove: () => void; onChange: (amount: number) => void }) {
+function ButtonLink() {
+  return <LinkButton to="/">Ver jogos</LinkButton>
+}
+
+const LinkButton = styled(Link)`
+  display: inline-block;
+  border-radius: 4px;
+  padding: 10px 16px;
+  color: white;
+  background: #d82c39;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 800;
+  &:hover { background: #f03b49; }
+`
+const RemoveAll = styled(Remove)`
+  align-self: flex-start;
+  padding: 8px 0;
+  font-size: 12px;
+`
+
+function CartItem({ line, onRemove, onChange }: { line: CartLine; onRemove: () => void; onChange: (amount: number) => void }) {
   return (
     <CartRow>
-      <img src={line.item.image} alt="" />
+      <img src={line.item.image} alt={`Capa de ${line.item.name}`} />
       <div>
-        <h3>{line.item.name}</h3>
-        <p>{line.restaurantName}</p>
-        <span className="price">{formatPrice(line.item.price * line.quantity)}</span>
+        <h2>{line.item.name}</h2>
+        <p>{formatPrice(line.item.price)} cada</p>
+        <strong>{formatPrice(line.item.price * line.quantity)}</strong>
       </div>
-      <RowControls>
-        <QuantityControl aria-label={`Quantidade de ${line.item.name}`}>
+      <RowActions>
+        <Quantity aria-label={`Quantidade de ${line.item.name}`}>
           <button type="button" aria-label={`Diminuir ${line.item.name}`} onClick={() => onChange(-1)}>−</button>
           <span>{line.quantity}</span>
           <button type="button" aria-label={`Aumentar ${line.item.name}`} onClick={() => onChange(1)}>+</button>
-        </QuantityControl>
-        <button type="button" onClick={onRemove}>Remover</button>
-      </RowControls>
+        </Quantity>
+        <Remove type="button" onClick={onRemove}>Remover</Remove>
+      </RowActions>
     </CartRow>
   )
 }
 
 function NotFound() {
+  return <Main><Empty>Esta página não existe. <LinkButton to="/">Voltar à loja</LinkButton></Empty></Main>
+}
+
+function AppShell() {
+  const { count } = useCart()
   return (
-    <Main>
-      <EmptyCart>
-        <h2>Não encontramos essa página</h2>
-        <p>Mas podemos ajudar você a encontrar algo gostoso.</p>
-        <FullButtonLink to="/">Ir para restaurantes</FullButtonLink>
-      </EmptyCart>
-    </Main>
+    <Page>
+      <Header>
+        <Link to="/" aria-label="EPLAY, página inicial"><img src="/images/logo.svg" alt="EPLAY" /></Link>
+        <CartLink to="/carrinho" aria-label={`Carrinho, ${count} ${count === 1 ? 'item' : 'itens'}`}>
+          <img src="/images/carrinho.svg" alt="" />
+          <span>Carrinho</span><span className="count">{count}</span>
+        </CartLink>
+      </Header>
+      <Routes>
+        <Route path="/" element={<StorePage />} />
+        <Route path="/carrinho" element={<CartPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Page>
   )
 }
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <CartProvider>
-        <GlobalStyle />
-        <AppShell />
-      </CartProvider>
-    </BrowserRouter>
-  )
+  return <BrowserRouter><GlobalStyle /><AppShell /></BrowserRouter>
 }

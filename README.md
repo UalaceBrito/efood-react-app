@@ -1,20 +1,18 @@
-# efood — demonstração de delivery
+# EPLAY — loja demonstrativa de games
 
-Aplicação front-end demonstrativa de delivery criada com React, TypeScript, Vite, React Router e Styled Components. A referência Figma informada não estava acessível (retornava HTTP 403); por isso, a interface segue a linguagem visual efood/EBAC indicada: fundo `#f4f1ea`, marca vermelha, navegação centralizada e cards de restaurantes com fotos, etiquetas e ações.
+Loja front-end responsiva criada com React, TypeScript, Vite, React Router, Redux Toolkit e Styled Components. As artes fornecidas para o exercício estão em `public/images`.
 
-## Escopo
+## Funcionalidades
 
-- Página inicial com busca, filtros por tipo de cozinha e cards de restaurantes.
-- Perfil de cada restaurante com cardápio dividido por categoria.
-- Modal acessível para consultar um produto e escolher quantidade.
-- Carrinho compartilhado entre rotas, com ajuste de quantidades, remoção, resumo e CTA demonstrativo.
-- Layout responsivo para telas menores e maiores.
+- Vitrine de jogos com busca e filtros por gênero.
+- Carrinho controlado pelo Redux Toolkit e compartilhado entre rotas.
+- Adição, remoção e ajuste da quantidade dos jogos.
+- Total da compra calculado pela soma do preço dos jogos multiplicado pelas quantidades.
+- Layout responsivo baseado nos assets de identidade visual do exercício.
 
 ## Dados e limitações
 
-Todos os restaurantes, itens, preços, avaliações, taxas e tempos são **dados demonstrativos locais** definidos em `src/data.ts`. O carrinho vive apenas em memória e é reiniciado ao recarregar a página. As fotografias usam URLs públicas do Unsplash e precisam de conexão com a internet para aparecer.
-
-O CTA “Finalizar pedido” apenas apresenta uma confirmação demonstrativa e limpa o carrinho. Não existe checkout real, coleta de dados de cartão, integração com API/backend, autenticação ou envio de pedidos.
+Os jogos, descrições e preços são demonstrativos e estão definidos em `src/data.ts`. O carrinho é mantido em memória e reinicia ao recarregar a página. O botão para continuar ao pagamento apresenta uma confirmação demonstrativa; não há checkout, integração de pagamento ou envio de pedidos.
 
 ## Desenvolvimento
 
